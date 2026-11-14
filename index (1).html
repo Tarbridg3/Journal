@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Treatment Journal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23D7A22A'/%3E%3Cpath d='M9.5 19 Q16 26 22.5 19' fill='none' stroke='%23101820' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='11.5' cy='13' r='1.8' fill='%23101820'/%3E%3Ccircle cx='20.5' cy='13' r='1.8' fill='%23101820'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: light header with a nav button; "new entry" page is one centered column, "entries" page is overview plus list. */
+:root {
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bg: #FAFBFB;
+  --surface: #FFFFFF;
+  --ink: #16232A;
+  --muted: #5F6F74;
+  --line: #E3E9EA;
+  --soft: #F0F5F5;
+  --accent: #006778;
+  --btn: #006778;
+  --btn-ink: #FFFFFF;
+  --gold: #D7A22A;
+  --gold-ink: #101820;
+  --danger: #A12B2B;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1619; --surface: #141E22; --ink: #E7EEEF; --muted: #8FA3A8; --line: #24343B;
+    --soft: #1A272C; --accent: #4DBFCF; --btn: #0A7A8C; --danger: #F08A8A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1619; --surface: #141E22; --ink: #E7EEEF; --muted: #8FA3A8; --line: #24343B;
+  --soft: #1A272C; --accent: #4DBFCF; --btn: #0A7A8C; --danger: #F08A8A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 720px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+.top h1 { margin: 0; font-size: 19px; font-weight: 600; color: var(--accent); letter-spacing: -.01em; }
+.btn-outline { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.btn-outline:hover { background: var(--soft); }
+
+.status { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); min-height: 19px; }
+.page { padding-block: 6px 48px; }
+.page h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+form.panel { padding: 22px 20px; display: flex; flex-direction: column; gap: 22px; margin-top: 14px; }
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.label { font-size: 14px; font-weight: 600; }
+.hint { font-size: 12.5px; color: var(--muted); margin-top: -3px; }
+.row { display: flex; gap: 8px; }
+input[type="date"], input[type="text"], textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; min-width: 0;
+}
+input[type="date"], input[type="text"], textarea { border-color: #CBD6D8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) input[type="date"], :root:not([data-theme="light"]) input[type="text"], :root:not([data-theme="light"]) textarea { border-color: #2F434B; } }
+:root[data-theme="dark"] input[type="date"], :root[data-theme="dark"] input[type="text"], :root[data-theme="dark"] textarea { border-color: #2F434B; }
+textarea { min-height: 140px; resize: vertical; }
+input[type="date"] { flex: 1; }
+input[aria-invalid="true"] { border-color: var(--danger) !important; }
+.link-btn { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; color: var(--accent); font-weight: 500; cursor: pointer; }
+.link-btn:hover { background: var(--soft); }
+
+.moods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.mood { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px 6px; background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); cursor: pointer; font-size: 11.5px; line-height: 1.2; text-align: center; }
+.mood .face { width: 38px; height: 38px; }
+.mood span.t { color: var(--muted); }
+.mood:hover { background: var(--soft); }
+.mood[aria-checked="true"] { background: var(--soft); border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold-ink); }
+.mood[aria-checked="true"] .fc { fill: var(--gold); stroke: var(--gold-ink); }
+.mood[aria-checked="true"] span.t { color: var(--ink); font-weight: 600; }
+.face { display: inline-block; }
+.face svg { width: 100%; height: 100%; display: block; }
+.face .fc { fill: none; stroke: currentColor; stroke-width: 1.6; }
+.face .eye { fill: currentColor; stroke: none; }
+.face .mouth { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.face .mouth.open { fill: currentColor; }
+.face.sm { width: 26px; height: 26px; color: var(--gold-ink); }
+.face.sm .fc { fill: var(--gold); stroke: var(--gold-ink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: 13.5px; }
+.chip:hover { background: var(--soft); }
+.chip[aria-pressed="true"] { background: var(--btn); border-color: var(--btn); color: var(--btn-ink); font-weight: 500; }
+
+.meds { display: flex; flex-direction: column; gap: 8px; }
+.med { display: grid; grid-template-columns: minmax(0, 1fr) 84px 34px; gap: 8px; align-items: center; }
+.med .time { text-align: center; font-variant-numeric: tabular-nums; }
+.med .x { width: 34px; height: 34px; background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+.med .x:hover { background: var(--soft); color: var(--ink); }
+.add-med { align-self: flex-start; background: none; border: 0; padding: 4px 0; color: var(--accent); font-weight: 500; cursor: pointer; }
+.add-med:hover { text-decoration: underline; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { background: var(--btn); color: var(--btn-ink); border: 0; border-radius: 6px; padding: 10px 20px; font-weight: 600; cursor: pointer; }
+.btn:hover { filter: brightness(1.1); }
+.btn:disabled { opacity: .6; cursor: default; }
+.btn-quiet { background: none; border: 0; padding: 10px 6px; color: var(--muted); cursor: pointer; font-weight: 500; }
+.btn-quiet:hover { color: var(--ink); text-decoration: underline; }
+.btn-quiet.danger { color: var(--danger); }
+
+.entries-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.overview { display: flex; flex-wrap: wrap; gap: 18px 32px; align-items: flex-end; margin: 18px 0; }
+.stat { min-width: 90px; }
+.stat b { display: block; font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.trend { flex: 1; min-width: 180px; }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; border-bottom: 1px solid var(--line); }
+.bar-col { flex: 1; min-width: 0; max-width: 26px; background: var(--accent); border-radius: 2px 2px 0 0; opacity: .7; }
+.bar-col.now { background: var(--gold); opacity: 1; }
+.trend small { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+.entry { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.entry:first-child { border-top: 0; }
+.e-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.e-date { font-weight: 600; }
+.e-mood { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 12px; padding: 2px 9px; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; font-weight: 500; }
+.e-meds { font-size: 13.5px; display: flex; flex-direction: column; gap: 2px; }
+.e-meds .mt { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.e-meds .ml { font-size: 12.5px; color: var(--muted); }
+.e-notes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.e-actions { display: flex; gap: 4px; margin-left: -6px; }
+.e-actions .btn-quiet { padding: 4px 6px; font-size: 13px; }
+.empty { padding: 28px 20px; color: var(--muted); }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 9px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: calc(100% - 32px); text-align: center; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Treatment Journal</h1>
+    <button class="btn-outline" id="navBtn" type="button">View entries</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="status" id="status" role="status"></p>
+
+  <section class="page" id="viewNew" aria-labelledby="formTitle">
+    <h2 id="formTitle">New entry</h2>
+    <form class="panel" id="form" autocomplete="off">
+      <div class="field">
+        <label class="label" for="date">Date</label>
+        <div class="row">
+          <input type="date" id="date">
+          <button type="button" class="link-btn" id="todayBtn">Today</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label" id="moodLabel">How do you feel?</span>
+        <div class="moods" id="moods" role="radiogroup" aria-labelledby="moodLabel"></div>
+      </div>
+
+      <div class="field">
+        <span class="label" id="evLabel">What happened today?</span>
+        <div class="chips" id="chips" role="group" aria-labelledby="evLabel"></div>
+      </div>
+
+      <div class="field">
+        <span class="label" id="medLabel">Medicines you took</span>
+        <span class="hint">Time uses the 24-hour clock, like 08:00 or 21:30.</span>
+        <div class="meds" id="meds" role="group" aria-labelledby="medLabel"></div>
+        <button type="button" class="add-med" id="addMed">+ Add another medicine</button>
+      </div>
+
+      <div class="field">
+        <label class="label" for="notes">Notes about your day</label>
+        <textarea id="notes" placeholder="Energy, appetite, sleep, side effects, questions for your team"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit" id="saveBtn">Save entry</button>
+        <button class="btn-quiet danger" type="button" id="delBtn" hidden>Delete entry</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="page" id="viewEntries" aria-labelledby="histTitle" hidden>
+    <div class="entries-head">
+      <h2 id="histTitle">Entries</h2>
+      <button class="btn-outline" id="exportBtn" type="button">Export to spreadsheet</button>
+    </div>
+    <div class="overview">
+      <div class="stat"><b id="statCount">0</b><span>Entries</span></div>
+      <div class="stat"><b id="statAvg">–</b><span>Average feeling, last 7</span></div>
+      <div class="trend">
+        <div class="bars" id="bars" role="img" aria-label="Feeling over recent entries"></div>
+        <small id="trendNote">Feeling trend appears after your first entries.</small>
+      </div>
+    </div>
+    <div class="panel" id="list"></div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var EVENTS = ["Chemo", "Radiation", "Scope", "Imaging", "Bloodwork", "Appointment", "Other"];
+  var LABELS = ["", "Very rough", "Rough", "Okay", "Good", "Great"];
+  var MOUTH = ["", "M10 24.5 Q16 16 22 24.5", "M11 23.5 Q16 19.5 21 23.5", "M11 22 H21", "M10.5 20 Q16 25.5 21.5 20", "M9.5 19 H22.5 Q22.5 27 16 27 Q9.5 27 9.5 19Z"];
+  var LS_KEY = "treatment-journal-v1";
+
+  var entries = {};
+  var store = null;
+  var dl = null;
+  var curMood = null;
+  var curEvents = new Set();
+  var firstLoad = true;
+  var loadTimer = null;
+  var toastTimer = null;
+  var view = "new";
+  var editing = false;
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function todayStr() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function fmt(s) {
+    var p = s.split("-").map(Number);
+    return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+  function face(n) {
+    return '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="fc" cx="16" cy="16" r="14.5"/>' +
+      '<circle class="eye" cx="11.5" cy="13" r="1.6"/><circle class="eye" cx="20.5" cy="13" r="1.6"/>' +
+      '<path class="mouth' + (n === 5 ? " open" : "") + '" d="' + MOUTH[n] + '"/></svg>';
+  }
+  function h(tag, props) {
+    var el = document.createElement(tag);
+    if (props) for (var k in props) {
+      if (k === "class") el.className = props[k];
+      else if (k === "html") el.innerHTML = props[k];
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), props[k]);
+      else el.setAttribute(k, props[k]);
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      el.append(c.nodeType ? c : document.createTextNode(c));
+    }
+    return el;
+  }
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2800);
+  }
+  function status(msg) { $("status").textContent = msg; }
+  /* Entries saved earlier may carry a legacy details field; fold it into the notes. */
+  function noteText(e) { return [e.details, e.notes].filter(Boolean).join("\n"); }
+
+  /* ---------- pages ---------- */
+  function setView(v) {
+    view = v === "entries" ? "entries" : "new";
+    $("viewNew").hidden = view !== "new";
+    $("viewEntries").hidden = view !== "entries";
+    updateNav();
+  }
+  function go(v) {
+    setView(v);
+    try { location.hash = v; } catch (e) { /* page still switches */ }
+    window.scrollTo(0, 0);
+  }
+  function updateNav() {
+    var n = Object.keys(entries).length;
+    $("navBtn").textContent = view === "new" ? "View entries" + (n ? " (" + n + ")" : "") : "New entry";
+  }
+
+  /* ---------- form pieces ---------- */
+  function buildMoods() {
+    var box = $("moods");
+    for (var n = 1; n <= 5; n++) {
+      (function (n) {
+        box.append(h("button", { type: "button", class: "mood", role: "radio", "aria-checked": "false", "data-m": n, "aria-label": n + " of 5, " + LABELS[n],
+          onclick: function () { setMood(curMood === n ? null : n); } },
+          h("span", { class: "face", html: face(n) }), h("span", { class: "t" }, LABELS[n])));
+      })(n);
+    }
+  }
+  function setMood(n) {
+    curMood = n;
+    Array.prototype.forEach.call($("moods").children, function (b) {
+      b.setAttribute("aria-checked", String(Number(b.getAttribute("data-m")) === n));
+    });
+  }
+  function buildChips() {
+    EVENTS.forEach(function (name) {
+      $("chips").append(h("button", { type: "button", class: "chip", "aria-pressed": "false", "data-e": name,
+        onclick: function (ev) {
+          var b = ev.currentTarget;
+          if (curEvents.has(name)) curEvents.delete(name); else curEvents.add(name);
+          b.setAttribute("aria-pressed", String(curEvents.has(name)));
+        } }, name));
+    });
+  }
+  function setEvents(list) {
+    curEvents = new Set(list || []);
+    Array.prototype.forEach.call($("chips").children, function (b) {
+      b.setAttribute("aria-pressed", String(curEvents.has(b.getAttribute("data-e"))));
+    });
+  }
+
+  /* ---------- medicine rows ---------- */
+  function normTime(v) {
+    var d = String(v || "").replace(/\D/g, "");
+    if (!d) return "";
+    var hh, mm;
+    if (d.length <= 2) { hh = d; mm = "00"; }
+    else if (d.length === 3) { hh = "0" + d[0]; mm = d.slice(1); }
+    else { hh = d.slice(0, 2); mm = d.slice(2, 4); }
+    if (+hh > 23 || +mm > 59) return null;
+    return pad(+hh) + ":" + mm;
+  }
+  function addMedRow(name, time, focus) {
+    var nameIn = h("input", { type: "text", class: "name", placeholder: "Medicine name", "aria-label": "Medicine name", maxlength: "80" });
+    var timeIn = h("input", { type: "text", class: "time", placeholder: "HH:MM", "aria-label": "Time taken, 24-hour", inputmode: "numeric", maxlength: "5" });
+    nameIn.value = name || ""; timeIn.value = time || "";
+    timeIn.addEventListener("input", function () {
+      timeIn.removeAttribute("aria-invalid");
+      var d = timeIn.value.replace(/\D/g, "").slice(0, 4);
+      timeIn.value = d.length > 2 ? d.slice(0, 2) + ":" + d.slice(2) : d;
+    });
+    timeIn.addEventListener("blur", function () {
+      var t = normTime(timeIn.value);
+      if (t === null) timeIn.setAttribute("aria-invalid", "true"); else timeIn.value = t;
+    });
+    var row = h("div", { class: "med" }, nameIn, timeIn,
+      h("button", { type: "button", class: "x", "aria-label": "Remove this medicine", onclick: function () {
+        row.remove();
+        if (!$("meds").children.length) addMedRow();
+      } }, "×"));
+    $("meds").append(row);
+    if (focus) nameIn.focus();
+  }
+  function setMeds(list) {
+    $("meds").replaceChildren();
+    (list || []).forEach(function (m) { addMedRow(m.name, m.time); });
+    if (!$("meds").children.length) addMedRow();
+  }
+  /* Returns an array, or null after showing the reason a row can't be saved. */
+  function readMeds() {
+    var out = [], bad = false;
+    Array.prototype.forEach.call($("meds").children, function (row) {
+      if (bad) return;
+      var nameIn = row.querySelector(".name"), timeIn = row.querySelector(".time");
+      var name = nameIn.value.trim(), t = normTime(timeIn.value);
+      if (!name && !timeIn.value.trim()) return;
+      if (t === null) { bad = true; timeIn.setAttribute("aria-invalid", "true"); timeIn.focus(); toast("Use 24-hour time, like 08:00 or 21:30."); return; }
+      if (!name) { bad = true; nameIn.focus(); toast("Add a medicine name for the time you entered."); return; }
+      timeIn.value = t;
+      out.push({ name: name, time: t });
+    });
+    if (bad) return null;
+    out.sort(function (a, b) { return (a.time || "99:99") < (b.time || "99:99") ? -1 : (a.time || "99:99") > (b.time || "99:99") ? 1 : 0; });
+    return out;
+  }
+
+  function refreshFormState() {
+    $("formTitle").textContent = editing ? "Edit entry" : "New entry";
+    $("delBtn").hidden = !editing;
+    resetDel($("delBtn"), "Delete entry");
+    resetDel($("saveBtn"), editing ? "Update entry" : "Save entry");
+  }
+  function newEntry() {
+    editing = false;
+    $("date").value = todayStr();
+    setMood(null); setEvents([]); setMeds([]);
+    $("notes").value = "";
+    refreshFormState();
+  }
+  function loadDate(d) {
+    $("date").value = d;
+    var e = entries[d];
+    editing = !!e;
+    setMood(e ? e.mood || null : null);
+    setEvents(e ? e.events : []);
+    setMeds(e ? e.meds : []);
+    $("notes").value = e ? noteText(e) : "";
+    refreshFormState();
+  }
+
+  /* ---------- delete with in-page confirmation ---------- */
+  function resetDel(btn, label) { clearTimeout(btn._t); btn.dataset.armed = ""; btn.textContent = label; }
+  function armDelete(btn, label, run) {
+    if (btn.dataset.armed) { resetDel(btn, label); run(); return; }
+    btn.dataset.armed = "1"; btn.textContent = "Tap again to delete";
+    btn._t = setTimeout(function () { resetDel(btn, label); }, 4000);
+  }
+  async function removeEntry(d) {
+    try {
+      await store.remove(d);
+      delete entries[d];
+      if ($("date").value === d) loadDate(d);
+      renderAll();
+      toast("Entry deleted");
+    } catch (e) { toast("Couldn't delete. Try again."); }
+  }
+
+  /* ---------- save ---------- */
+  async function saveEntry() {
+    var date = $("date").value;
+    if (!date) { toast("Choose a date first."); return; }
+    var meds = readMeds();
+    if (meds === null) return;
+    var entry = {
+      date: date,
+      mood: curMood,
+      events: EVENTS.filter(function (x) { return curEvents.has(x); }),
+      meds: meds,
+      notes: $("notes").value.trim(),
+      updated: new Date().toISOString()
+    };
+    if (!entry.mood && !entry.events.length && !entry.meds.length && !entry.notes) { toast("Add a feeling, an event, a medicine, or a note first."); return; }
+    var btn = $("saveBtn");
+    if (!editing && entries[date] && !btn.dataset.armed) {
+      btn.dataset.armed = "1"; btn.textContent = "Replace existing entry? Tap again";
+      btn._t = setTimeout(function () { resetDel(btn, "Save entry"); }, 5000);
+      return;
+    }
+    btn.disabled = true;
+    try {
+      await store.save(entry);
+      entries[date] = entry;
+      var wasEditing = editing;
+      newEntry();
+      renderAll();
+      toast(wasEditing ? "Entry updated" : "Entry saved");
+      go("new");
+    } catch (e) {
+      resetDel(btn, editing ? "Update entry" : "Save entry");
+      toast("Couldn't save. Try again.");
+    }
+    btn.disabled = false;
+  }
+
+  /* ---------- render ---------- */
+  function sortedDates(desc) { var k = Object.keys(entries).sort(); return desc ? k.reverse() : k; }
+  function entryEl(e) {
+    var pills = (e.events || []).map(function (x) { return h("span", { class: "pill" }, x); });
+    var meds = e.meds || [];
+    var notes = noteText(e);
+    var del = h("button", { type: "button", class: "btn-quiet danger" }, "Delete");
+    del.addEventListener("click", function () { armDelete(del, "Delete", function () { removeEntry(e.date); }); });
+    return h("article", { class: "entry" },
+      h("div", { class: "e-head" },
+        h("div", { class: "e-date" }, fmt(e.date)),
+        e.mood ? h("div", { class: "e-mood" }, h("span", { class: "face sm", html: face(e.mood) }), h("span", null, e.mood + "/5 · " + LABELS[e.mood])) : null),
+      pills.length ? h("div", { class: "pills" }, pills) : null,
+      meds.length ? h("div", { class: "e-meds" }, h("span", { class: "ml" }, "Medicines"),
+        meds.map(function (m) { return h("div", null, h("span", { class: "mt" }, m.time || "--:--"), m.name); })) : null,
+      notes ? h("p", { class: "e-notes" }, notes) : null,
+      h("div", { class: "e-actions" },
+        h("button", { type: "button", class: "btn-quiet", onclick: function () { loadDate(e.date); go("new"); } }, "Edit"), del));
+  }
+  function renderList() {
+    var list = $("list"); list.replaceChildren();
+    var dates = sortedDates(true);
+    if (!dates.length) { list.append(h("div", { class: "empty" }, "No entries yet. Choose New entry to log your first day.")); return; }
+    dates.forEach(function (d) { list.append(entryEl(entries[d])); });
+  }
+  function renderOverview() {
+    var all = sortedDates(false).map(function (d) { return entries[d]; });
+    $("statCount").textContent = all.length;
+    var withMood = all.filter(function (e) { return e.mood; });
+    var last7 = withMood.slice(-7);
+    $("statAvg").textContent = last7.length ? (last7.reduce(function (s, e) { return s + e.mood; }, 0) / last7.length).toFixed(1) : "–";
+    var bars = $("bars"); bars.replaceChildren();
+    var last = withMood.slice(-14);
+    last.forEach(function (e, i) {
+      bars.append(h("div", { class: "bar-col" + (i === last.length - 1 ? " now" : ""), style: "height:" + (e.mood * 20) + "%", title: fmt(e.date) + ": " + LABELS[e.mood] }));
+    });
+    $("trendNote").textContent = last.length > 1 ? "Last " + last.length + " entries, oldest to newest" : "Feeling trend appears after your first entries.";
+  }
+  function renderAll() { renderList(); renderOverview(); updateNav(); }
+
+  /* ---------- storage ---------- */
+  function localLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}") || {}; } catch (e) { return {}; } }
+  function localWrite() { try { localStorage.setItem(LS_KEY, JSON.stringify(entries)); } catch (e) { /* kept in memory only */ } }
+
+  async function initStore() {
+    var db = null, user = null;
+    try {
+      if (window.claude && window.claude.use) {
+        db = await window.claude.use("db");
+        user = await window.claude.use("user");
+        dl = await window.claude.use("downloads");
+      }
+    } catch (e) { db = null; }
+    var uid = null;
+    try { uid = user ? await user.id() : null; } catch (e) { uid = null; }
+
+    if (db && uid) {
+      var col = db.collection("data/users/" + uid);
+      store = { save: function (e) { return col.doc(e.date).set(e); }, remove: function (d) { return col.doc(d).delete(); } };
+      loadTimer = setTimeout(function () { status("Can't reach your saved entries yet. They will appear once you're connected."); }, 10000);
+      col.onSnapshot(function (snap) {
+        var next = {};
+        snap.docs.forEach(function (d) { var v = d.data(); if (v && v.date) next[v.date] = v; });
+        entries = next;
+        if (!snap.metadata.fromCache) { clearTimeout(loadTimer); status("Your entries are saved privately to your account."); }
+        renderAll();
+        if (firstLoad) { firstLoad = false; loadDate($("date").value || todayStr()); } else { refreshFormState(); }
+      }, function () {
+        clearTimeout(loadTimer);
+        status("Your saved entries can't be loaded right now.");
+      });
+    } else {
+      store = {
+        save: function (e) { entries[e.date] = e; localWrite(); return Promise.resolve(); },
+        remove: function (d) { delete entries[d]; localWrite(); return Promise.resolve(); }
+      };
+      entries = localLoad();
+      status(window.claude
+        ? "You're not signed in, so entries are kept in this browser only."
+        : "Entries are saved in this browser on this device only. Export now and then to keep a copy.");
+      firstLoad = false;
+      renderAll(); loadDate($("date").value || todayStr());
+    }
+  }
+
+  /* ---------- export ---------- */
+  function rows() {
+    return sortedDates(false).map(function (d) {
+      var e = entries[d], r = {};
+      r["Date"] = e.date;
+      r["Feeling (1-5)"] = e.mood || "";
+      r["Feeling"] = e.mood ? LABELS[e.mood] : "";
+      EVENTS.forEach(function (x) { r[x] = (e.events || []).indexOf(x) > -1 ? "Yes" : ""; });
+      r["Medicines (24-hour time)"] = (e.meds || []).map(function (m) { return (m.time ? m.time + " " : "") + m.name; }).join("; ");
+      r["Notes"] = noteText(e);
+      return r;
+    });
+  }
+  function toCsv(rs) {
+    var cols = Object.keys(rs[0]);
+    function q(v) { v = String(v == null ? "" : v); if (/^[=+@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }
+    return "﻿" + [cols.map(q).join(",")].concat(rs.map(function (r) { return cols.map(function (c) { return q(r[c]); }).join(","); })).join("\r\n");
+  }
+  function saveFile(filename, blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  async function doExport() {
+    var rs = rows();
+    if (!rs.length) { toast("No entries to export yet."); return; }
+    var stamp = todayStr();
+    try {
+      var filename, blob;
+      if (window.XLSX) {
+        var ws = XLSX.utils.json_to_sheet(rs);
+        ws["!cols"] = [{ wch: 12 }, { wch: 13 }, { wch: 11 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 12 }, { wch: 7 }, { wch: 45 }, { wch: 70 }];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Journal");
+        var buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        filename = "treatment-journal-" + stamp + ".xlsx";
+        blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      } else {
+        filename = "treatment-journal-" + stamp + ".csv";
+        blob = new Blob([toCsv(rs)], { type: "text/csv" });
+      }
+      if (dl) { await dl.save({ filename: filename, data: blob }); toast("Spreadsheet ready"); }
+      else if (!window.claude) { saveFile(filename, blob); toast("Spreadsheet downloaded"); }
+      else { await navigator.clipboard.writeText(toCsv(rs)); toast("Copied as CSV. Paste into a spreadsheet."); }
+    } catch (e) {
+      if (e && e.code === "declined") return;
+      toast("Couldn't export. Try again.");
+    }
+  }
+
+  /* ---------- wire up ---------- */
+  buildMoods(); buildChips(); setMeds([]);
+  $("date").value = todayStr();
+  $("date").addEventListener("change", function () { if ($("date").value) loadDate($("date").value); });
+  $("todayBtn").addEventListener("click", function () { loadDate(todayStr()); });
+  $("addMed").addEventListener("click", function () { addMedRow("", "", true); });
+  $("form").addEventListener("submit", function (ev) { ev.preventDefault(); saveEntry(); });
+  $("delBtn").addEventListener("click", function () {
+    var d = $("date").value;
+    armDelete($("delBtn"), "Delete entry", function () { removeEntry(d); });
+  });
+  $("exportBtn").addEventListener("click", doExport);
+  $("navBtn").addEventListener("click", function () { go(view === "new" ? "entries" : "new"); });
+  window.addEventListener("hashchange", function () { setView(location.hash === "#entries" ? "entries" : "new"); });
+  setView(location.hash === "#entries" ? "entries" : "new");
+  renderAll(); refreshFormState();
+  initStore();
+})();
+</script>
+</body>
+</html>
